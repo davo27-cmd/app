@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Prototipo Interactivo Mobile</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- React & ReactDOM -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Custom Fonts & Styles -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+
+        /* Custom Scrollbar for crisp mobile look */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(0,0,0,0.03);
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(0,0,0,0.15);
+            border-radius: 10px;
+        }
+
+        /* Slide Tab Animations */
+        .tab-slide-left-enter {
+            transform: translateX(100%);
+            opacity: 0;
+        }
+        .tab-slide-left-active {
+            transform: translateX(0);
+            opacity: 1;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+        
+        .tab-slide-right-enter {
+            transform: translateX(-100%);
+            opacity: 0;
+        }
+        .tab-slide-right-active {
+            transform: translateX(0);
+            opacity: 1;
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        /* Glassmorphism effects */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+        }
+
+        /* Mobile frame shadow */
+        .phone-shadow {
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 12px #1f2937;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 min-h-screen flex items-center justify-center p-0 md:p-4 overflow-x-hidden">
+
+    <!-- Container element for React App -->
+    <div id="root" class="w-full h-full flex justify-center items-center"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        // Custom Helper Icon Component wrapper to use Lucide Icons safely in React
+        const Icon = ({ name, size = 24, className = "" }) => {
+            const iconRef = useRef(null);
+
+            useEffect(() => {
+                if (window.lucide && iconRef.current) {
+                    iconRef.current.innerHTML = '';
+                    const i = document.createElement('i');
+                    i.setAttribute('data-lucide', name);
+                    i.setAttribute('width', size);
+                    i.setAttribute('height', size);
+                    if (className) i.setAttribute('className', className);
+                    iconRef.current.appendChild(i);
+                    window.lucide.createIcons({
+                        attrs: {
+                            'stroke-width': 2
+                        },
+                        nameMap: { [name]: i }
+                    });
+                }
+            }, [name, size, className]);
+
+            return <span ref={iconRef} className="inline-flex items-center justify-center" />;
+        };
+
+        // Exact vector representation of the MotiSPOT Brand Logo
+        const MotiSpotLogo = ({ light = true, height = "h-7" }) => {
+            const textColor = light ? "#FFFFFF" : "#1E293B";
+            const spotColor = "#38BDF8"; // Sky Blue from brand
+
+            return (
+                <div className={`flex items-center select-none ${height}`}>
+                    <svg viewBox="0 0 190 55" className="h-full w-auto" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        {/* "Moti" text in white or dark */}
+                        <text x="0" y="38" fill={textColor} fontFamily="Plus Jakarta Sans, sans-serif" fontWeight="800" fontSize="36" letterSpacing="-0.5px">Moti</text>
+                        {/* "SP" */}
+                        <text x="82" y="38" fill={spotColor} fontFamily="Plus Jakarta Sans, sans-serif" fontWeight="800" fontSize="36" letterSpacing="-0.5px">SP</text>
+                        {/* "O" */}
+                        <text x="129" y="38" fill={spotColor} fontFamily="Plus Jakarta Sans, sans-serif" fontWeight="800" fontSize="36" letterSpacing="-0.5px">O</text>
+                        {/* Map Pin tail pointing down under the "O" */}
+                        <path d="M142 41 L148 51 L154 41 Z" fill={spotColor} />
+                        {/* "T" */}
+                        <text x="158" y="38" fill={spotColor} fontFamily="Plus Jakarta Sans, sans-serif" fontWeight="800" fontSize="36" letterSpacing="-0.5px">T</text>
+                    </svg>
+                </div>
+            );
+        };
+
+        // Hardcoded Challenges Data
+        const CHALLENGES_HARD = [
+            "Ve a una plaza o parque cercano y saluda cordialmente a un desconocido.",
+            "Ve a un café local y pregunta amablemente por la recomendación especial del barista.",
+            "Visita un negocio de tu barrio y hazle un cumplido sincero al encargado.",
+            "Pide la hora a alguien en la calle y regálale una sonrisa antes de despedirte."
+        ];
+
+        const CHALLENGES_SIMPLE = [
+            "Camina durante 15 minutos al aire libre sin usar el teléfono celular.",
+            "Busca un parque cercano y tómale una fotografía creativa a un ave.",
+            "Encuentra una flor bonita en tu camino y tómale una foto de cerca.",
+            "Siéntate en una banca pública e identifica 3 sonidos naturales distintos."
+        ];
+
+        // Hardcoded Rewards Data strictly matching format rules
+        const REWARDS_DATA = [
+            { id: 1, text: "Pizza familiar de Pizzería Luigi con 20% de dcto. por 150 puntos!", title: "Pizza Familiar", vendor: "Pizzería Luigi", discount: "20%", cost: 150, image: "🍕" },
+            { id: 2, text: "Hamburguesa doble de Burger King con 15% de dcto. por 100 puntos!", title: "Hamburguesa Doble", vendor: "Burger King", discount: "15%", cost: 100, image: "🍔" },
+            { id: 3, text: "Café Capuchino de Gran Café con 25% de dcto. por 80 puntos!", title: "Café Capuchino", vendor: "Gran Café", discount: "25%", cost: 80, image: "☕" },
+            { id: 4, text: "Sushi Roll 12 pzas de Sushi House con 10% de dcto. por 120 puntos!", title: "Sushi Roll 12 Pzas", vendor: "Sushi House", discount: "10%", cost: 120, image: "🍣" },
+            { id: 5, text: "Tacos al pastor de Taquería El Sol con 20% de dcto. por 180 puntos!", title: "Tacos al Pastor", vendor: "Taquería El Sol", discount: "20%", cost: 180, image: "🌮" },
+            { id: 6, text: "Helado artesanal de Gelato Mio con 15% de dcto. por 50 puntos!", title: "Helado Artesanal", vendor: "Gelato Mio", discount: "15%", cost: 50, image: "🍦" }
+        ];
+
+        /* ==========================================================================
+           MAIN APPLICATION COMPONENT
+           ========================================================================== */
+        function App() {
+            // Global State
+            const [points, setPoints] = useState(0);
+            const [activeTab, setActiveTab] = useState('home'); // 'points', 'home', 'explore', 'social'
+            const [prevTab, setPrevTab] = useState('home');
+            const [slideDirection, setSlideDirection] = useState('left');
+
+            // Daily Games State
+            // Game 3 (Puzle Diario) starts PRECONFIGURED AS COMPLETED!
+            const [gameStatus, setGameStatus] = useState({
+                chess: false,
+                crossword: false,
+                puzzle: true
+            });
+
+            // Stack Navigation state for Games Overlays
+            const [currentOverlay, setCurrentOverlay] = useState(null); // null, 'games_select', 'chess', 'crossword'
+
+            // Notification / Alert Message modal
+            const [toastMessage, setToastMessage] = useState(null);
+
+            const showToast = (msg, type = "success") => {
+                setToastMessage({ msg, type });
+                setTimeout(() => {
+                    setToastMessage(null);
+                }, 3500);
+            };
+
+            // Calculate completed daily games count (0 to 3)
+            const completedGamesCount = Object.values(gameStatus).filter(Boolean).length;
+
+            // Tab Order map for sliding directions
+            const tabOrder = ['points', 'home', 'explore', 'social'];
+
+            const handleTabChange = (newTab) => {
+                if (newTab === activeTab) return;
+                const oldIndex = tabOrder.indexOf(activeTab);
+                const newIndex = tabOrder.indexOf(newTab);
+                setSlideDirection(newIndex > oldIndex ? 'left' : 'right');
+                setPrevTab(activeTab);
+                setActiveTab(newTab);
+            };
+
+            // Complete a game helper
+            const markGameCompleted = (gameKey) => {
+                if (!gameStatus[gameKey]) {
+                    setGameStatus(prev => ({ ...prev, [gameKey]: true }));
+                    setPoints(p => p + 5);
+                    showToast("¡Juego completado! Ganaste +5 puntos 🎮", "success");
+                }
+            };
+
+            return (
+                <div className="w-full max-w-md h-[100vh] md:h-[840px] bg-slate-50 md:rounded-[40px] phone-shadow flex flex-col overflow-hidden relative border-0 md:border-8 border-slate-800">
+                    
+                    {/* Status Bar simulation (Mobile aesthetic) */}
+                    <div className="bg-[#2d8a53] text-white px-6 pt-3 pb-1 flex justify-between items-center text-xs font-semibold tracking-wider z-50 select-none">
+                        <span>9:41</span>
+                        <div className="flex items-center gap-1.5">
+                            <span className="w-2 h-2 rounded-full bg-emerald-300 animate-pulse"></span>
+                            <Icon name="wifi" size={14} />
+                            <Icon name="battery" size={14} />
+                        </div>
+                    </div>
+
+                    {/* MotiSPOT Brand Top Navigation Header */}
+                    <div className="bg-[#2d8a53] text-white px-5 py-2.5 flex justify-between items-center shadow-md z-40 border-b border-emerald-700/50">
+                        <MotiSpotLogo light={true} height="h-7" />
+                        <div className="flex items-center gap-2">
+                            <button 
+                                onClick={() => showToast("¡Bienvenido a MotiSPOT! Completa retos para sumar puntos.", "success")}
+                                className="bg-white/10 hover:bg-white/20 p-2 rounded-full transition-all text-white active:scale-95"
+                                title="Info MotiSPOT"
+                            >
+                                <Icon name="info" size={18} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Toast Notification Banner */}
+                    {toastMessage && (
+                        <div className="absolute top-20 left-4 right-4 z-[100] animate-bounce">
+                            <div className={`p-4 rounded-2xl shadow-xl backdrop-blur-md text-white font-medium text-sm flex items-center gap-3 border ${
+                                toastMessage.type === 'error' ? 'bg-red-500/90 border-red-400' : 'bg-emerald-600/90 border-emerald-400'
+                            }`}>
+                                <Icon name={toastMessage.type === 'error' ? 'alert-circle' : 'check-circle-2'} size={22} />
+                                <span className="flex-1">{toastMessage.msg}</span>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MAIN CONTENT AREA WITH SLIDE TRANSITION */}
+                    <div className="flex-1 relative overflow-hidden bg-slate-50">
+                        <div key={activeTab} className={`w-full h-full absolute inset-0 overflow-y-auto pb-20 ${
+                            slideDirection === 'left' ? 'tab-slide-left-active' : 'tab-slide-right-active'
+                        }`}>
+                            {activeTab === 'points' && <RewardsScreen points={points} setPoints={setPoints} showToast={showToast} />}
+                            {activeTab === 'home' && (
+                                <HomeScreen 
+                                    points={points} 
+                                    setPoints={setPoints} 
+                                    completedGamesCount={completedGamesCount}
+                                    onOpenGames={() => setCurrentOverlay('games_select')}
+                                    showToast={showToast}
+                                />
+                            )}
+                            {activeTab === 'explore' && <ExploreScreen />}
+                            {activeTab === 'social' && <SocialScreen showToast={showToast} />}
+                        </div>
+                    </div>
+
+                    {/* BOTTOM NAVIGATION TABS */}
+                    {}
+                    <nav className="bg-white/90 backdrop-blur-md border-t border-slate-200/80 px-3 py-2 flex justify-around items-center absolute bottom-0 inset-x-0 z-40 shadow-lg">
+                        <button 
+                            onClick={() => handleTabChange('points')}
+                            className={`flex flex-col items-center py-1 px-3 rounded-2xl transition-all duration-200 ${
+                                activeTab === 'points' ? 'text-indigo-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            <Icon name="award" size={22} />
+                            <span className="text-[11px] mt-1">Mis puntos</span>
+                        </button>
+
+                        <button 
+                            onClick={() => handleTabChange('home')}
+                            className={`flex flex-col items-center py-1 px-3 rounded-2xl transition-all duration-200 ${
+                                activeTab === 'home' ? 'text-indigo-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            <Icon name="home" size={22} />
+                            <span className="text-[11px] mt-1">Inicio</span>
+                        </button>
+
+                        <button 
+                            onClick={() => handleTabChange('explore')}
+                            className={`flex flex-col items-center py-1 px-3 rounded-2xl transition-all duration-200 ${
+                                activeTab === 'explore' ? 'text-indigo-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            <Icon name="compass" size={22} />
+                            <span className="text-[11px] mt-1">Explorar</span>
+                        </button>
+
+                        <button 
+                            onClick={() => handleTabChange('social')}
+                            className={`flex flex-col items-center py-1 px-3 rounded-2xl transition-all duration-200 ${
+                                activeTab === 'social' ? 'text-indigo-600 font-bold scale-105' : 'text-slate-400 hover:text-slate-600'
+                            }`}
+                        >
+                            <Icon name="users" size={22} />
+                            <span className="text-[11px] mt-1">Social</span>
+                        </button>
+                    </nav>
+
+                    {/* OVERLAYS / STACKED SCREENS FOR DAILY GAMES */}
+                    {currentOverlay === 'games_select' && (
+                        <GamesSelectModal 
+                            gameStatus={gameStatus} 
+                            completedCount={completedGamesCount}
+                            onClose={() => setCurrentOverlay(null)}
+                            onSelectGame={(gameKey) => setCurrentOverlay(gameKey)}
+                        />
+                    )}
+
+                    {currentOverlay === 'chess' && (
+                        <ChessGameModal 
+                            onClose={() => setCurrentOverlay('games_select')}
+                            onComplete={() => {
+                                markGameCompleted('chess');
+                                setCurrentOverlay('games_select');
+                            }}
+                            isCompleted={gameStatus.chess}
+                        />
+                    )}
+
+                    {currentOverlay === 'crossword' && (
+                        <CrosswordGameModal 
+                            onClose={() => setCurrentOverlay('games_select')}
+                            onComplete={() => {
+                                markGameCompleted('crossword');
+                                setCurrentOverlay('games_select');
+                            }}
+                            isCompleted={gameStatus.crossword}
+                        />
+                    )}
+                </div>
+            );
+        }
+
+        /* ==========================================================================
+           2. HOME SCREEN COMPONENT
+           ========================================================================== */
+        function HomeScreen({ points, setPoints, completedGamesCount, onOpenGames, showToast }) {
+            const [currentChallenge, setCurrentChallenge] = useState(null);
+            const [challengeType, setChallengeType] = useState(null); // 'hard' | 'simple'
+
+            // Dynamic Greeting based on client device hour
+            const getGreeting = () => {
+                const hour = new Date().getHours();
+                if (hour >= 6 && hour < 12) return "¡Buenos días!";
+                if (hour >= 12 && hour < 20) return "¡Buenas tardes!";
+                return "¡Buenas noches!";
+            };
+
+            const generateChallenge = (type) => {
+                setChallengeType(type);
+                if (type === 'hard') {
+                    const random = CHALLENGES_HARD[Math.floor(Math.random() * CHALLENGES_HARD.length)];
+                    setCurrentChallenge({ text: random, pts: 15 });
+                } else {
+                    const random = CHALLENGES_SIMPLE[Math.floor(Math.random() * CHALLENGES_SIMPLE.length)];
+                    setCurrentChallenge({ text: random, pts: 10 });
+                }
+            };
+
+            const completeChallenge = () => {
+                if (!currentChallenge) return;
+                setPoints(p => p + currentChallenge.pts);
+                showToast(`¡Desafío completado! Sumaste +${currentChallenge.pts} puntos 🎉`, "success");
+                setCurrentChallenge(null);
+                setChallengeType(null);
+            };
+
+            return (
+                <div className="p-5 flex flex-col gap-5">
+                    
+                    {/* Points Header Bar */}
+                    <div className="bg-gradient-to-r from-indigo-600 via-indigo-700 to-purple-700 text-white p-5 rounded-3xl shadow-xl flex justify-between items-center relative overflow-hidden">
+                        <div className="absolute -right-4 -bottom-4 w-24 h-24 bg-white/10 rounded-full blur-xl"></div>
+                        <div>
+                            <p className="text-indigo-200 text-xs font-semibold uppercase tracking-wider">Tu Balance</p>
+                            <h2 className="text-2xl font-extrabold mt-0.5 flex items-center gap-2">
+                                Mis puntos: <span className="text-amber-300 bg-white/10 px-3 py-0.5 rounded-full border border-amber-300/30">{points}</span>
+                            </h2>
+                        </div>
+                        <div className="bg-amber-400/20 p-3 rounded-2xl border border-amber-300/40 backdrop-blur-sm">
+                            <Icon name="sparkles" size={28} className="text-amber-300 animate-pulse" />
+                        </div>
+                    </div>
+
+                    {/* Greeting Banner */}
+                    <div>
+                        <h1 className="text-2xl font-extrabold text-slate-800 tracking-tight">{getGreeting()}</h1>
+                        <p className="text-slate-500 text-sm mt-0.5">Completa tus metas diarias y gana recompensas.</p>
+                    </div>
+
+                    {/* Challenges Card Section */}
+                    <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-200/80 flex flex-col gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="bg-indigo-100 p-2 rounded-xl text-indigo-600">
+                                <Icon name="target" size={20} />
+                            </div>
+                            <h3 className="font-bold text-slate-800 text-base">Desafíos Rápidos</h3>
+                        </div>
+
+                        {!currentChallenge ? (
+                            <div className="grid grid-cols-1 gap-3">
+                                <button 
+                                    onClick={() => generateChallenge('hard')}
+                                    className="w-full bg-gradient-to-r from-rose-500 to-amber-600 hover:from-rose-600 hover:to-amber-700 text-white p-4 rounded-2xl font-semibold text-sm flex items-center justify-between shadow-md transition-all active:scale-[0.98]"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-white/20 p-2 rounded-xl">
+                                            <Icon name="flame" size={20} />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-bold text-base leading-snug">Quiero algo desafiante</p>
+                                            <p className="text-xs text-rose-100">Gana +15 puntos</p>
+                                        </div>
+                                    </div>
+                                    <Icon name="chevron-right" size={20} />
+                                </button>
+
+                                <button 
+                                    onClick={() => generateChallenge('simple')}
+                                    className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white p-4 rounded-2xl font-semibold text-sm flex items-center justify-between shadow-md transition-all active:scale-[0.98]"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="bg-white/20 p-2 rounded-xl">
+                                            <Icon name="smile" size={20} />
+                                        </div>
+                                        <div className="text-left">
+                                            <p className="font-bold text-base leading-snug">Dame algo simple</p>
+                                            <p className="text-xs text-emerald-100">Gana +10 puntos</p>
+                                        </div>
+                                    </div>
+                                    <Icon name="chevron-right" size={20} />
+                                </button>
+                            </div>
+                        ) : (
+                            <div className="bg-slate-50 border border-slate-200 p-4 rounded-2xl flex flex-col gap-3 animate-fade-in">
+                                <div className="flex items-center justify-between">
+                                    <span className={`text-xs font-bold px-2.5 py-1 rounded-full uppercase tracking-wider ${
+                                        challengeType === 'hard' ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                                    }`}>
+                                        {challengeType === 'hard' ? '🔥 Desafiante (+15 pts)' : '🌱 Simple (+10 pts)'}
+                                    </span>
+                                    <button 
+                                        onClick={() => setCurrentChallenge(null)}
+                                        className="text-slate-400 hover:text-slate-600 p-1"
+                                    >
+                                        <Icon name="x" size={18} />
+                                    </button>
+                                </div>
+                                <p className="text-slate-700 font-medium text-sm leading-relaxed bg-white p-3 rounded-xl border border-slate-100 shadow-sm">
+                                    "{currentChallenge.text}"
+                                </p>
+                                <button 
+                                    onClick={completeChallenge}
+                                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-xl shadow-md flex items-center justify-center gap-2 transition-all active:scale-95"
+                                >
+                                    <Icon name="check-circle" size={18} />
+                                    Marcar listo
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Big Daily Games Button */}
+                    <div className="bg-gradient-to-br from-slate-900 to-indigo-950 p-6 rounded-3xl text-white shadow-xl flex flex-col gap-4 relative overflow-hidden border border-slate-800">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <span className="bg-indigo-500/20 text-indigo-300 text-xs font-bold px-3 py-1 rounded-full border border-indigo-500/30">
+                                    Progreso Diario
+                                </span>
+                                <h3 className="text-xl font-extrabold mt-2">Juegos Diarios</h3>
+                                <p className="text-xs text-slate-400 mt-1">Completa desafíos de mente todos los días</p>
+                            </div>
+                            <div className="bg-indigo-600 text-white font-extrabold px-3 py-1.5 rounded-2xl text-sm border border-indigo-400 shadow-inner flex items-center gap-1">
+                                <Icon name="trophy" size={16} className="text-amber-300" />
+                                {completedGamesCount}/3
+                            </div>
+                        </div>
+
+                        <button 
+                            onClick={onOpenGames}
+                            className="w-full bg-white text-indigo-950 font-bold py-3.5 px-4 rounded-2xl flex items-center justify-center gap-2 shadow-lg hover:bg-slate-100 transition-all active:scale-[0.98] mt-1"
+                        >
+                            <Icon name="gamepad-2" size={20} className="text-indigo-600" />
+                            Abrir Juegos Diarios
+                        </button>
+                    </div>
+
+                </div>
+            );
+        }
+
+        /* ==========================================================================
+           3. REWARDS SCREEN COMPONENT ("Mis Puntos")
+           ========================================================================== */
+        function RewardsScreen({ points, setPoints, showToast }) {
+            const handleRedeem = (reward) => {
+                if (points >= reward.cost) {
+                    setPoints(p => p - reward.cost);
+                    showToast(`¡Canje exitoso! Disfruta tu ${reward.title}`, "success");
+                } else {
+                    showToast(`Te faltan ${reward.cost - points} puntos para este canje.`, "error");
+                }
+            };
+
+            return (
+                <div className="p-5 flex flex-col gap-5">
+                    
+                    {/* Points Banner Badge */}
+                    <div className="bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white p-6 rounded-3xl shadow-xl text-center relative overflow-hidden">
+                        <div className="absolute -left-6 -top-6 w-20 h-20 bg-white/20 rounded-full blur-lg"></div>
+                        <p className="text-amber-100 text-xs font-bold uppercase tracking-widest">Puntos Acumulados</p>
+                        <h1 className="text-5xl font-black mt-1 tracking-tight text-white drop-shadow-sm">{points}</h1>
+                        <p className="text-xs text-amber-100 mt-2 font-medium">¡Canjéalos por descuentos exclusivos!</p>
+                    </div>
+
+                    <h2 className="text-lg font-extrabold text-slate-800 flex items-center gap-2">
+                        <Icon name="shopping-bag" size={20} className="text-indigo-600" />
+                        Catálogo de Recompensas
+                    </h2>
+
+                    {/* Hardcoded Rewards List */}
+                    <div className="flex flex-col gap-3">
+                        {REWARDS_DATA.map((reward) => {
+                            const canAfford = points >= reward.cost;
+                            return (
+                                <div key={reward.id} className="bg-white p-4 rounded-2xl shadow-sm border border-slate-200/80 flex flex-col gap-3 hover:shadow-md transition-all">
+                                    <div className="flex items-start gap-3">
+                                        <div className="text-3xl bg-slate-100 p-2.5 rounded-2xl flex items-center justify-center border border-slate-200">
+                                            {reward.image}
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between">
+                                                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
+                                                    {reward.discount} DCTO
+                                                </span>
+                                                <span className="text-xs font-bold text-slate-600 flex items-center gap-1">
+                                                    <Icon name="coins" size={14} className="text-amber-500" />
+                                                    {reward.cost} pts
+                                                </span>
+                                            </div>
+                                            {/* Strict Hardcoded Format rendered verbatim */}
+                                            <p className="text-slate-800 text-xs font-medium mt-2 leading-snug">
+                                                "{reward.text}"
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <button 
+                                        onClick={() => handleRedeem(reward)}
+                                        className={`w-full py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                                            canAfford 
+                                                ? 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm active:scale-[0.98]' 
+                                                : 'bg-slate-100 text-slate-400 border border-slate-200'
+                                        }`}
+                                    >
+                                        <Icon name={canAfford ? 'gift' : 'lock'} size={15} />
+                                        {canAfford ? 'Canjear Recompensa' : `Requiere ${reward.cost} pts`}
+                                    </button>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                </div>
+            );
+        }
+
+        /* ==========================================================================
+           4. EXPLORE SCREEN COMPONENT (Placeholder)
+           ========================================================================== */
+        function ExploreScreen() {
+            return (
+                <div className="h-full min-h-[500px] flex flex-col items-center justify-center p-6 text-center">
+                    <div className="w-20 h-20 bg-indigo-50 text-indigo-600 rounded-3xl flex items-center justify-center mb-4 border border-indigo-100 shadow-inner">
+                        <Icon name="compass" size={40} className="animate-spin-slow" />
+                    </div>
+                    <h2 className="text-xl font-extrabold text-slate-800">Próximamente</h2>
+                    <p className="text-slate-400 text-sm mt-2 max-w-xs">
+                        Estamos preparando nuevas secciones, mapas interactivos y lugares cercanos para ti.
+                    </p>
+                </div>
+            );
+        }
+
+        /* ==========================================================================
+           5. SOCIAL SCREEN COMPONENT
+           ========================================================================== */
+        function SocialScreen({ showToast }) {
+            const [thought, setThought] = useState("¡Disfrutando de los desafíos diarios! 🚀");
+            const [showInput, setShowInput] = useState(false);
+            const [inputText, setInputText] = useState("");
+            const [showQRModal, setShowQRModal] = useState(false);
+
+            const handleSaveThought = (e) => {
+                e.preventDefault();
+                if (inputText.trim()) {
+                    setThought(inputText.trim());
+                    setInputText("");
+                    setShowInput(false);
+                    showToast("¡Estado actualizado!", "success");
+                }
+            };
+
+            return (
+                <div className="p-5 flex flex-col gap-5 relative">
+                    
+                    {/* Header with Messaging Icon on Top-Right */}
+                    <div className="flex justify-between items-center pb-2 border-b border-slate-200">
+                        <h2 className="text-xl font-extrabold text-slate-800">Comunidad</h2>
+                        <button 
+                            onClick={() => showToast("Buzón de mensajes vacíos", "success")}
+                            className="bg-slate-100 hover:bg-slate-200 p-2.5 rounded-2xl text-slate-700 transition-all active:scale-95 relative"
+                        >
+                            <Icon name="message-square" size={20} />
+                            <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-indigo-600 rounded-full border-2 border-white"></span>
+                        </button>
+                    </div>
+
+                    {/* Centered Profile Header */}
+                    <div className="flex flex-col items-center text-center mt-2">
+                        {/* Circular Profile Placeholder */}
+                        <div className="relative">
+                            <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 p-1 shadow-lg">
+                                <div className="w-full h-full rounded-full bg-slate-800 flex items-center justify-center text-white text-3xl font-bold border-2 border-white overflow-hidden">
+                                    <span className="text-2xl">👤</span>
+                                </div>
+                            </div>
+                            <span className="absolute bottom-0 right-0 bg-emerald-500 border-2 border-white w-6 h-6 rounded-full flex items-center justify-center">
+                                <Icon name="check" size={12} className="text-white" />
+                            </span>
+                        </div>
+
+                        {/* Hardcoded Username */}
+                        <h3 className="text-xl font-extrabold text-slate-800 mt-3">Usuario de Prueba</h3>
+                        <p className="text-xs text-slate-400 font-medium">@usuario_demo</p>
+
+                        {/* Share QR Button */}
+                        <button 
+                            onClick={() => setShowQRModal(true)}
+                            className="mt-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold px-5 py-2.5 rounded-2xl flex items-center gap-2 shadow-md transition-all active:scale-95"
+                        >
+                            <Icon name="qr-code" size={16} />
+                            Compartir QR
+                        </button>
+
+                        {/* User Thought Rendered directly under QR Button */}
+                        <div className="mt-5 w-full bg-indigo-50/80 border border-indigo-100 p-4 rounded-2xl text-center relative">
+                            <Icon name="quote" size={16} className="text-indigo-400 absolute top-2 left-3 opacity-50" />
+                            <p className="text-xs font-semibold text-indigo-400 uppercase tracking-wider mb-1">Pensamiento actual</p>
+                            <p className="text-sm font-medium text-slate-700 italic">
+                                "{thought}"
+                            </p>
+                        </div>
+
+                        {/* What are you thinking? Toggle Button */}
+                        {!showInput ? (
+                            <button 
+                                onClick={() => setShowInput(true)}
+                                className="mt-4 text-xs font-bold text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 py-2 px-4 rounded-xl bg-indigo-50 hover:bg-indigo-100 transition-all"
+                            >
+                                <Icon name="edit-3" size={14} />
+                                ¿Qué estás pensando?
+                            </button>
+                        ) : (
+                            <form onSubmit={handleSaveThought} className="mt-4 w-full flex flex-col gap-2 animate-fade-in">
+                                <textarea 
+                                    value={inputText}
+                                    onChange={(e) => setInputText(e.target.value)}
+                                    placeholder="Escribe tu estado aquí..."
+                                    className="w-full p-3 rounded-2xl border border-indigo-300 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-xs text-slate-800 bg-white shadow-inner resize-none"
+                                    rows={2}
+                                    autoFocus
+                                />
+                                <div className="flex gap-2 justify-end">
+                                    <button 
+                                        type="button" 
+                                        onClick={() => setShowInput(false)}
+                                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-500 hover:bg-slate-100"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button 
+                                        type="submit"
+                                        className="px-4 py-1.5 rounded-xl text-xs font-bold bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm"
+                                    >
+                                        Guardar
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+                    </div>
+
+                    {/* QR Code Modal Simulation */}
+                    {showQRModal && (
+                        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+                            <div className="bg-white p-6 rounded-3xl max-w-xs w-full text-center flex flex-col items-center gap-4 shadow-2xl animate-scale-up">
+                                <h3 className="font-extrabold text-slate-800 text-base">Tu Código QR</h3>
+                                <div className="bg-slate-100 p-4 rounded-2xl border border-slate-200">
+                                    {/* SVG Simulated QR Code */}
+                                    <svg className="w-40 h-40" viewBox="0 0 100 100">
+                                        <path d="M0,0 h30 v30 h-30 z M40,0 h20 v10 h-20 z M70,0 h30 v30 h-30 z M10,10 h10 v10 h-10 z M80,10 h10 v10 h-10 z M0,40 h10 v20 h-10 z M30,30 h30 v30 h-30 z M80,40 h20 v20 h-20 z M0,70 h30 v30 h-30 z M10,80 h10 v10 h-10 z M40,70 h30 v10 h-30 z M80,80 h20 v20 h-20 z" fill="#1e293b"/>
+                                    </svg>
+                                </div>
+                                <p className="text-xs text-slate-400">Escanea para agregar a @usuario_demo</p>
+                                <button 
+                                    onClick={() => setShowQRModal(false)}
+                                    className="w-full bg-slate-900 text-white font-bold py-2.5 rounded-xl text-xs mt-2"
+                                >
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        }
+
+        /* ==========================================================================
+           6. DAILY GAMES SELECT MODAL
+           ========================================================================== */
+        function GamesSelectModal({ gameStatus, completedCount, onClose, onSelectGame }) {
+            return (
+                <div className="absolute inset-0 bg-slate-900/90 backdrop-blur-md z-50 flex flex-col p-5 animate-fade-in">
+                    
+                    <div className="flex justify-between items-center mb-6">
+                        <div>
+                            <h2 className="text-xl font-black text-white">Juegos Diarios</h2>
+                            <p className="text-xs text-slate-400">Completados: {completedCount}/3</p>
+                        </div>
+                        <button 
+                            onClick={onClose}
+                            className="bg-white/10 text-white p-2 rounded-full hover:bg-white/20 transition-all"
+                        >
+                            <Icon name="x" size={20} />
+                        </button>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                        
+                        {/* Game 1: Desafío Ajedrez */}
+                        <div className={`p-4 rounded-3xl border flex items-center justify-between transition-all ${
+                            gameStatus.chess 
+                                ? 'bg-slate-800/60 border-slate-700 text-slate-400' 
+                                : 'bg-gradient-to-r from-indigo-900/80 to-purple-900/80 border-indigo-500/30 text-white hover:border-indigo-400'
+                        }`}>
+                            <div className="flex items-center gap-3.5">
+                                <div className="text-3xl bg-white/10 p-3 rounded-2xl">♟️</div>
+                                <div>
+                                    <h4 className="font-bold text-base text-white">Desafío Ajedrez</h4>
+                                    <p className="text-xs text-indigo-200">Jaque mate estratégico (+5 pts)</p>
+                                </div>
+                            </div>
+                            {gameStatus.chess ? (
+                                <span className="bg-emerald-500/20 text-emerald-400 p-2 rounded-full border border-emerald-500/30">
+                                    ✔️
+                                </span>
+                            ) : (
+                                <button 
+                                    onClick={() => onSelectGame('chess')}
+                                    className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md"
+                                >
+                                    Jugar
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Game 2: Mini Crucigrama */}
+                        <div className={`p-4 rounded-3xl border flex items-center justify-between transition-all ${
+                            gameStatus.crossword 
+                                ? 'bg-slate-800/60 border-slate-700 text-slate-400' 
+                                : 'bg-gradient-to-r from-emerald-900/80 to-teal-900/80 border-emerald-500/30 text-white hover:border-emerald-400'
+                        }`}>
+                            <div className="flex items-center gap-3.5">
+                                <div className="text-3xl bg-white/10 p-3 rounded-2xl">✏️</div>
+                                <div>
+                                    <h4 className="font-bold text-base text-white">Mini Crucigrama</h4>
+                                    <p className="text-xs text-emerald-200">6 Palabras cruzadas (+5 pts)</p>
+                                </div>
+                            </div>
+                            {gameStatus.crossword ? (
+                                <span className="bg-emerald-500/20 text-emerald-400 p-2 rounded-full border border-emerald-500/30">
+                                    ✔️
+                                </span>
+                            ) : (
+                                <button 
+                                    onClick={() => onSelectGame('crossword')}
+                                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md"
+                                >
+                                    Jugar
+                                </button>
+                            )}
+                        </div>
+
+                        {/* Game 3: Puzle Diario (PRECONFIGURED AS COMPLETED!) */}
+                        <div className="p-4 rounded-3xl border bg-slate-800/60 border-slate-700 text-slate-400 flex items-center justify-between">
+                            <div className="flex items-center gap-3.5">
+                                <div className="text-3xl bg-white/5 p-3 rounded-2xl opacity-60">🧩</div>
+                                <div>
+                                    <h4 className="font-bold text-base text-slate-300">Puzle Diario</h4>
+                                    <p className="text-xs text-slate-500">Ya completado hoy (+5 pts)</p>
+                                </div>
+                            </div>
+                            <span className="bg-emerald-500/20 text-emerald-400 font-bold px-3 py-1 rounded-full text-sm border border-emerald-500/30">
+                                ✔️
+                            </span>
+                        </div>
+
+                    </div>
+
+                    <button 
+                        onClick={onClose}
+                        className="mt-auto w-full py-3.5 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl text-xs"
+                    >
+                        Volver al Inicio
+                    </button>
+                </div>
+            );
+        }
+
+        /* ==========================================================================
+           7. GAME 1: CHESS CHALLENGE (INTERACTIVE HARDCODED BOARD)
+           ========================================================================== */
+        function ChessGameModal({ onClose, onComplete, isCompleted }) {
+            // Interactive Mate-in-3 Tactics Chess Board
+            // Initial position: White Rook on e1, White Queen on h5, Black King on h8, Black Pawns f7, g7, h7
+            const [boardState, setBoardState] = useState([
+                ['r', 'n', 'b', 'q', '.', 'r', 'k', '.'],
+                ['p', 'p', 'p', 'p', '.', 'p', 'p', 'p'],
+                ['.', '.', '.', '.', '.', '.', '.', '.'],
+                ['.', '.', '.', '.', '.', '.', '.', 'Q'],
+                ['.', '.', '.', '.', 'P', '.', '.', '.'],
+                ['.', '.', '.', '.', '.', '.', '.', '.'],
+                ['P', 'P', 'P', 'P', '.', 'P', 'P', 'P'],
+                ['R', 'N', 'B', '.', 'K', 'B', 'N', 'R']
+            ]);
+
+            const [selectedSquare, setSelectedSquare] = useState(null);
+            const [moveStep, setMoveStep] = useState(0); // 0: initial, 1: Qxf7+, 2: Qxh7#
+            const [showExplanation, setShowExplanation] = useState(false);
+            const [gameMsg, setGameMsg] = useState("Encuentra el mate táctico. Es el turno de las Blancas.");
+
+            const resetAttempt = () => {
+                setMoveStep(0);
+                setSelectedSquare(null);
+                setGameMsg("Encuentra el mate táctico. Es el turno de las Blancas.");
+            };
+
+            const handleSquareClick = (r, c) => {
+                if (moveStep >= 2) return; // Already finished
+
+                if (!selectedSquare) {
+                    // Select White Queen at (3, 7)
+                    if (r === 3 && c === 7 && moveStep === 0) {
+                        setSelectedSquare({ r, c });
+                    } else if (r === 1 && c === 5 && moveStep === 1) { // Select Queen now at f7 (1,5)
+                        setSelectedSquare({ r, c });
+                    }
+                } else {
+                    // Move 1: Queen takes f7 (1, 5) -> Check!
+                    if (selectedSquare.r === 3 && selectedSquare.c === 7 && r === 1 && c === 5 && moveStep === 0) {
+                        setMoveStep(1);
+                        setSelectedSquare(null);
+                        setGameMsg("¡Jaque! ¡La CPU mueve al Rey a h8!");
+                        setTimeout(() => {
+                            setGameMsg("¡Turno de Blancas! Da el jaque mate definitivo.");
+                        }, 1200);
+                    } 
+                    // Move 2: Queen takes h7 (1, 6) or moves to h7 -> Mate!
+                    else if (selectedSquare.r === 1 && selectedSquare.c === 5 && r === 1 && c === 6 && moveStep === 1) {
+                        setMoveStep(2);
+                        setSelectedSquare(null);
+                        setGameMsg("¡JAQUE MATE! 🎉 Has resuelto el desafío.");
+                        setTimeout(() => {
+                            onComplete();
+                        }, 1800);
+                    } else {
+                        setSelectedSquare(null);
+                        setGameMsg("Movimiento incorrecto. Intenta otra jugada táctica.");
+                    }
+                }
+            };
+
+            // Unicode Chess Symbols Map
+            const pieceSymbols = {
+                'K': '♔', 'Q': '♕', 'R': '♖', 'B': '♗', 'N': '♘', 'P': '♙',
+                'k': '♚', 'q': '♛', 'r': '♜', 'b': '♝', 'n': '♞', 'p': '♟',
+                '.': ''
+            };
+
+            return (
+                <div className="absolute inset-0 bg-slate-900 z-50 flex flex-col p-5 overflow-y-auto">
+                    
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-2xl">♟️</span>
+                            <h3 className="font-extrabold text-white text-lg">Desafío Ajedrez</h3>
+                        </div>
+                        <button onClick={onClose} className="text-slate-400 hover:text-white p-1">
+                            <Icon name="x" size={24} />
+                        </button>
+                    </div>
+
+                    <div className="bg-slate-800 p-3 rounded-2xl text-slate-200 text-xs text-center mb-4 border border-slate-700">
+                        {gameMsg}
+                    </div>
+
+                    {/* Chess Board Container */}
+                    <div className="w-full aspect-square bg-amber-100 rounded-2xl overflow-hidden grid grid-cols-8 shadow-2xl border-4 border-amber-900/40 my-auto">
+                        {Array.from({ length: 8 }).map((_, r) =>
+                            Array.from({ length: 8 }).map((_, c) => {
+                                const isDark = (r + c) % 2 === 1;
+                                const isSelected = selectedSquare && selectedSquare.r === r && selectedSquare.c === c;
+                                
+                                // Dynamic pieces rendering depending on moveStep
+                                let piece = '.';
+                                if (moveStep === 0) {
+                                    if (r === 3 && c === 7) piece = 'Q';
+                                    if (r === 1 && c === 5) piece = 'p';
+                                    if (r === 1 && c === 6) piece = 'p';
+                                    if (r === 0 && c === 6) piece = 'k';
+                                    if (r === 0 && c === 0) piece = 'r';
+                                } else if (moveStep === 1) {
+                                    if (r === 1 && c === 5) piece = 'Q'; // Queen on f7
+                                    if (r === 1 && c === 6) piece = 'p';
+                                    if (r === 0 && c === 7) piece = 'k'; // King moved to h8
+                                } else if (moveStep === 2) {
+                                    if (r === 1 && c === 6) piece = 'Q'; // Queen on h7 Mate
+                                    if (r === 0 && c === 7) piece = 'k';
+                                }
+
+                                return (
+                                    <button
+                                        key={`${r}-${c}`}
+                                        onClick={() => handleSquareClick(r, c)}
+                                        className={`flex items-center justify-center text-2xl font-bold select-none transition-all ${
+                                            isDark ? 'bg-amber-800 text-amber-100' : 'bg-amber-200 text-amber-900'
+                                        } ${isSelected ? 'ring-4 ring-indigo-500 z-10 scale-95' : ''}`}
+                                    >
+                                        <span className={piece === piece.toUpperCase() ? 'text-white drop-shadow' : 'text-slate-900'}>
+                                            {pieceSymbols[piece]}
+                                        </span>
+                                    </button>
+                                );
+                            })
+                        )}
+                    </div>
+
+                    {/* Action Controls */}
+                    <div className="flex flex-col gap-2 mt-6">
+                        <div className="grid grid-cols-2 gap-2">
+                            <button 
+                                onClick={resetAttempt}
+                                className="bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5"
+                            >
+                                <Icon name="rotate-ccw" size={16} />
+                                Reiniciar intento
+                            </button>
+                            <button 
+                                onClick={() => setShowExplanation(!showExplanation)}
+                                className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-1.5"
+                            >
+                                <Icon name="help-circle" size={16} />
+                                Explicación
+                            </button>
+                        </div>
+
+                        <button 
+                            onClick={onClose}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-xl text-xs mt-1"
+                        >
+                            Volver
+                        </button>
+                    </div>
+
+                    {/* Explanation Modal Overlay */}
+                    {showExplanation && (
+                        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-5">
+                            <div className="bg-slate-800 border border-slate-700 text-white p-5 rounded-3xl max-w-xs w-full flex flex-col gap-3">
+                                <h4 className="font-extrabold text-base flex items-center gap-2 text-amber-400">
+                                    💡 Solución Táctica
+                                </h4>
+                                <p className="text-xs text-slate-300 leading-relaxed">
+                                    <strong>1. Dxf7+!</strong> Sacrificio táctico desviando la defensa negra.
+                                    <br /><br />
+                                    <strong>1... Rh8</strong> El rey negro es forzado a moverse a la esquina.
+                                    <br /><br />
+                                    <strong>2. Dxh7#</strong> Jaque mate directo einminente.
+                                </p>
+                                <button 
+                                    onClick={() => setShowExplanation(false)}
+                                    className="bg-indigo-600 font-bold text-xs py-2.5 rounded-xl mt-2"
+                                >
+                                    Entendido
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                </div>
+            );
+        }
+
+        /* ==========================================================================
+           8. GAME 2: MINI CROSSWORD GAME (HARDCODED SPANISH WORDS)
+           ========================================================================== */
+        function CrosswordGameModal({ onClose, onComplete, isCompleted }) {
+            // 5x5 Matrix Hardcoded for 6 interlaced Spanish words
+            // Grid solution:
+            // Row 0: Sol (S-O-L)
+            // Row 2: Pan (P-A-N)
+            // Row 4: Mar (M-A-R)
+            const [grid, setGrid] = useState([
+                ['S', 'O', 'L', '', ''],
+                ['', 'Z', '', '', ''],
+                ['P', 'A', 'N', '', ''],
+                ['', 'Z', '', '', ''],
+                ['M', 'A', 'R', '', '']
+            ]);
+
+            const [userInputs, setUserInputs] = useState([
+                ['', '', '', '', ''],
+                ['', '', '', '', ''],
+                ['', '', '', '', ''],
+                ['', '', '', '', ''],
+                ['', '', '', '', '']
+            ]);
+
+            const [currentHint, setCurrentHint] = useState("Selecciona una casilla para ver la pista correspondiente.");
+
+            // Hardcoded clues map based on cell focus
+            const getHintForCell = (r, c) => {
+                if (r === 0) return "Horizontal (1): Estrella luminosa centro de nuestro sistema.";
+                if (r === 2) return "Horizontal (2): Alimento básico hecho de harina y levadura.";
+                if (r === 4) return "Horizontal (3): Gran masa de agua salada.";
+                if (c === 1) return "Vertical (1): Bebida de frutas concentrada o batida.";
+                return "Crucigrama diario de palabras cruzadas en español.";
+            };
+
+            const handleInputChange = (r, c, val) => {
+                const char = val.slice(-1).toUpperCase();
+                const newGrid = userInputs.map((rowArr, ri) => 
+                    rowArr.map((cell, ci) => (ri === r && ci === c ? char : cell))
+                );
+                setUserInputs(newGrid);
+                setCurrentHint(getHintForCell(r, c));
+
+                // Auto verification of complete grid
+                checkSolution(newGrid);
+            };
+
+            const checkSolution = (currentGrid) => {
+                let correct = true;
+                for (let r = 0; r < 5; r++) {
+                    for (let c = 0; c < 5; c++) {
+                        if (grid[r][c] !== '' && currentGrid[r][c] !== grid[r][c]) {
+                            correct = false;
+                        }
+                    }
+                }
+                if (correct) {
+                    setCurrentHint("¡EXCELENTE! Has completado el crucigrama correctamente. 🎉");
+                    setTimeout(() => {
+                        onComplete();
+                    }, 1500);
+                }
+            };
+
+            return (
+                <div className="absolute inset-0 bg-slate-900 z-50 flex flex-col p-5 overflow-y-auto">
+                    <div className="flex justify-between items-center mb-4">
+                        <div className="flex items-center gap-2">
+                            <span className="text-2xl">✏️</span>
+                            <h3 className="font-extrabold text-white text-lg">Mini Crucigrama</h3>
+                        </div>
+                        <button onClick={onClose} className="text-slate-400 hover:text-white p-1">
+                            <Icon name="x" size={24} />
+                        </button>
+                    </div>
+
+                    {/* Active Clue Header Banner */}
+                    <div className="bg-emerald-950/80 border border-emerald-500/40 p-4 rounded-2xl text-emerald-200 text-xs font-semibold mb-6 flex items-start gap-2.5 shadow-lg">
+                        <Icon name="lightbulb" size={20} className="text-emerald-400 shrink-0 mt-0.5" />
+                        <p className="leading-relaxed">{currentHint}</p>
+                    </div>
+
+                    {/* Crossword Grid Matrix */}
+                    <div className="flex justify-center my-auto">
+                        <div className="grid grid-cols-5 gap-2 bg-slate-800 p-4 rounded-3xl border border-slate-700 shadow-2xl">
+                            {grid.map((rowArr, r) =>
+                                rowArr.map((cellSolution, c) => {
+                                    const isBlocked = cellSolution === '';
+                                    return (
+                                        <div key={`${r}-${c}`} className="w-12 h-12 relative">
+                                            {!isBlocked ? (
+                                                <input
+                                                    type="text"
+                                                    maxLength={1}
+                                                    value={userInputs[r][c]}
+                                                    onFocus={() => setCurrentHint(getHintForCell(r, c))}
+                                                    onChange={(e) => handleInputChange(r, c, e.target.value)}
+                                                    className="w-full h-full text-center text-lg font-black bg-slate-100 text-slate-900 rounded-xl focus:outline-none focus:ring-4 focus:ring-emerald-500 uppercase shadow-inner"
+                                                />
+                                            ) : (
+                                                <div className="w-full h-full bg-slate-900/60 rounded-xl border border-slate-800"></div>
+                                            )}
+                                        </div>
+                                    );
+                                })
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="mt-6 flex flex-col gap-2">
+                        <button 
+                            onClick={() => checkSolution(userInputs)}
+                            className="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3.5 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-lg"
+                        >
+                            <Icon name="check-circle-2" size={18} />
+                            Verificar Respuestas
+                        </button>
+                        <button 
+                            onClick={onClose}
+                            className="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-3 rounded-2xl text-xs"
+                        >
+                            Volver
+                        </button>
+                    </div>
+                </div>
+            );
+        }
+
+        // Render application to DOM
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
